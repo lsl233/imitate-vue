@@ -8,12 +8,18 @@ const selector = Object.keys(directives).map((directiveName) => `[${prefix}-${di
 
 class Seed {
     constructor(opts) {
+        // 根元素
         const rootEle = document.getElementById(opts.id)
+        // 获取所有自定义属性的元素`sd-text="msg"`, `sd-show="show"`
         const eles = rootEle.querySelectorAll(selector)
         const bindings = {}
         this.scope = {}
+
         /**
          * 处理节点
+         * 1. 克隆元素属性
+         * 2. 解析指令
+         * 3. 绑定指令
          */
         const processNode = (el) => {
             cloneAttributes(el.attributes).forEach((attr) => {
@@ -23,17 +29,22 @@ class Seed {
                 }
             })
         };
+
         [].forEach.call(eles, processNode)
         processNode(rootEle)
 
+        // 指令存入 scope
         for (const key in bindings) {
             this.scope[key] = opts.scope[key]
         }
-
-        console.log(this)
     }
 }
 
+
+/**
+ * 克隆DOM属性并转换为数组
+ * @param {*} attributes 
+ */
 function cloneAttributes(attributes) {
     return [].map.call(attributes, (attr) => {
         const { name, value } = attr
@@ -74,6 +85,14 @@ function parseDirective(attr) {
     return def ? directive : null
 }
 
+
+/**
+ * 绑定指令
+ * @param {*} seed 
+ * @param {*} el 
+ * @param {*} bindings 
+ * @param {*} directive 
+ */
 function bindDirective (seed, el, bindings, directive) {
     // 删除自定义属性
     el.removeAttribute(directive.attr.name)
@@ -100,6 +119,12 @@ function bindDirective (seed, el, bindings, directive) {
     }
 }
 
+/**
+ * 绑定 存取器，getter setter
+ * @param {*} seed 
+ * @param {*} key 
+ * @param {*} binding 
+ */
 function bindAccessors (seed, key, binding) {
     Object.defineProperty(seed.scope, key, {
         get() {
@@ -108,16 +133,19 @@ function bindAccessors (seed, key, binding) {
         set(value) {
             binding.value = value
             binding.directives.forEach(directive => {
+                // 处理filter
                 if (value && directive.filters) {
                     value = applyFilters(value, directive)
                 }
-
+                
+                // 更新DOM
                 directive.update(directive.el, value)
             })
         }
     })
 }
 
+// 加载fitler
 function applyFilters (value, directive) {
     if (directive.definition.customFilter) {
         return directive.definition.customFilter(value, directive.filters)
